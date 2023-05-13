@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script>
+        // Inizializzazione del WebSocket
+        var ws = new WebSocket("wss://progettogiocoschiacciailsorcio-ubalducci-giacchetti.glitch.me");
+
+        var sparo=false;
+
+        var colpito = 0;
+
+        // Gestione della connessione WebSocket
+        ws.onopen = function() {
+          console.log("Connessione WebSocket stabilita");
+        };
+
+        // Gestione della ricezione dei messaggi WebSocket
+        ws.onmessage = function(event) {
+          var data = JSON.parse(event.data);
+          console.log(event);
+          console.log(data);
+          switch (data.type) {
+            case "player-joined":
+              // Aggiornamento del punteggio del giocatore corrente
+              document.getElementById("punti").value = "0";
+              break;
+
+            case "game-tick":
+              // Aggiornamento del tempo rimasto
+              document.getElementById("time_expired").value = data.time;
+
+              if (data.time === 0) {
+                if (colpito < 20) alert("Sei una pippaaa!!!");
+                else alert("Bene, hai fatto " + colpito + " punti!");
+                the_end();
+              }
+              break;
+
+            case "generate":
+              // Generazione del sorcio per il giocatore corrente
+              muovi_il_sorcio(data.x, data.y);
+              console.log(data.x,data.y);
+              document.images["sorcio"].src = "sorcio.gif";
+              document.images["sorcio"].style.display = "block";
+              break;
+
+            case "game-over":
+              // Uccisione del sorcio per il giocatore corrente
+              clearInterval(timer_to_blink);
+              window.status = ":::BONUS:::";
+              tempo = tempo + 1;
+              document.images["sorcio"].src = "sorcio_morto.gif";
+              setTimeout(function() {
+                ripristina_sorcio();
+              }, 1000);
+              break;
+          }
+        };
+
+        // Funzione per inviare messaggi WebSocket al server
+        function sendMessage(message) {
+          ws.send(JSON.stringify(message));
+        }
+
+        // Funzione per inviare il punteggio al server
+        function invia_punteggio(punteggio) {
+          const name = document.getElementById("name").value;
+          sendMessage({ type: "mole-hit", name });
+        }
+
+
+        // Funzione per inviare la notifica di uccisione del sorcio al server
+        function notifica_uccisione_sorcio()
+         {
+          invia_punteggio();
+          sparo = true; // Imposta la variabile sparo su true dopo il clic
+          document.images["sorcio"].src = "sorcio_morto.gif";
+          document.getElementById("punti").value +=1;
+          setTimeout(function() {
+            sparo = false; // Reimposta la variabile sparo su false dopo 500 millisecondi
+          }, 1000);
+        }
+
+        function joinGame() {
+          const name = document.getElementById("name").value;
+          if (name) {
+            console.log("test");
+            ws.send(JSON.stringify({ type: "join-game", name }));
+          }
+        }
+
+        function muovi_il_sorcio(x, y) {
+          console.log("COORDINATE RICEVUTE: " + x + "," + y );
+          var sorcioElement = document.images["sorcio"];
+          sorcioElement.style.left = x + "px";
+          sorcioElement.style.top = y
+          + "px";
+          sorcioElement.style.display = "block";
+        }
+
+        function startGame()
+        {
+            ws.send(JSON.stringify({ type: "start-game"}));
+        }
+        
+        function stopGame()
+        {
+            ws.send(JSON.stringify({ type: "stop-game"}));
+        }
+ 
+    </script>
+</head>
+<body>
+    <div>
+        <label for="name">Inserisci il tuo nome:</label>
+        <input type="text" id="name" />
+        <button onclick="joinGame()">Unisciti al gioco</button>
+        <button onclick="startGame()">Inizia il gioco</button>
+        <button onclick="stopGame()">Ferma il gioco</button>
+    </div>
+    Punti: <input readonly type="text" value="0" id="punti" style="border: none; background-color: transparent;"><br>
+    Tempo: <input readonly type="text" value="0" id="time_expired" style="border: none; background-color: transparent;">
+
+    <img name="sorcio" src="sorcio.gif" style="cursor: crosshair; z-index: 1000; position: absolute; display: none" onclick="if(!sparo){notifica_uccisione_sorcio();}">
+</body>
+</html>
